@@ -455,23 +455,43 @@ elif page == "🔮 Predict":
         poutcome = st.selectbox("Previous Outcome", ['unknown', 'other', 'failure', 'success'])
 
     if st.button("🚀 Predict", use_container_width=True):
-        input_dict = {
-            'age': age, 'job': job, 'marital': marital, 'education': education,
-            'default': default, 'balance': balance, 'housing': housing, 'loan': loan,
-            'contact': contact, 'day': day, 'month': month, 'duration': duration,
-            'campaign': campaign, 'pdays': pdays, 'previous': previous, 'poutcome': poutcome,
-            'deposit': 'no'
-        }
-        input_df = pd.DataFrame([input_dict])
-        input_df['deposit'] = input_df['deposit'].map({'yes': 1, 'no': 0})
-        input_encoded = pd.get_dummies(input_df, drop_first=True)
-
         expected_cols = artifacts['feature_names']
-        for col in expected_cols:
-            if col not in input_encoded.columns:
-                input_encoded[col] = 0
-        input_encoded = input_encoded[expected_cols]
+        # Build input vector manually to guarantee all 42 columns exist
+        row = {col: 0 for col in expected_cols}
+        # Numeric
+        row['age']      = age
+        row['balance']  = balance
+        row['day']      = day
+        row['duration'] = duration
+        row['campaign'] = campaign
+        row['pdays']    = pdays
+        row['previous'] = previous
+        # Binary yes/no
+        row['default_yes'] = 1 if default == 'yes' else 0
+        row['housing_yes'] = 1 if housing == 'yes' else 0
+        row['loan_yes']    = 1 if loan    == 'yes' else 0
+        # Job (base = admin.)
+        job_col = f'job_{job}'
+        if job_col in row: row[job_col] = 1
+        # Marital (base = divorced)
+        if marital == 'married': row['marital_married'] = 1
+        elif marital == 'single': row['marital_single'] = 1
+        # Education (base = primary)
+        if education == 'secondary': row['education_secondary'] = 1
+        elif education == 'tertiary': row['education_tertiary'] = 1
+        elif education == 'unknown':  row['education_unknown']  = 1
+        # Contact (base = cellular)
+        if contact == 'telephone': row['contact_telephone'] = 1
+        elif contact == 'unknown': row['contact_unknown']   = 1
+        # Month (base = apr)
+        month_col = f'month_{month}'
+        if month_col in row: row[month_col] = 1
+        # Poutcome (base = failure)
+        if poutcome == 'other':   row['poutcome_other']   = 1
+        elif poutcome == 'success': row['poutcome_success'] = 1
+        elif poutcome == 'unknown': row['poutcome_unknown'] = 1
 
+        input_encoded = pd.DataFrame([row])[expected_cols]
         scaler = artifacts['scaler']
         input_scaled = scaler.transform(input_encoded)
 
